@@ -72,7 +72,22 @@ namespace com.espertech.esper.regression.expr
     
             RunLikeRegexStringAndNull();
         }
-    
+
+        [Test]
+        public void TestRegexSlashU()
+        {
+            String caseExpr = @"select p00 regexp '.*\\user\\.*' as result from " + typeof(SupportBean_S0).FullName;
+
+            EPStatement selectTestCase = _epService.EPAdministrator.CreateEPL(caseExpr);
+            selectTestCase.Events += _testListener.Update;
+
+            _epService.EPRuntime.SendEvent(new SupportBean_S0(-1, @"\\user\\bob"));
+            Assert.IsTrue(_testListener.AssertOneGetNewAndReset().Get("result").AsBoolean());
+
+            _epService.EPRuntime.SendEvent(new SupportBean_S0(-1, "TBT-BC"));
+            Assert.IsFalse(_testListener.AssertOneGetNewAndReset().Get("result").AsBoolean());
+        }
+
         [Test]
         public void TestLikeRegexEscapedChar()
         {

@@ -7,7 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 using System;
-
+using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 
 using com.espertech.esper.epl.generated;
@@ -73,7 +73,9 @@ namespace com.espertech.esper.epl.parse
                     }
                 }
                 else if (ruleIndex == EsperEPL2GrammarParser.RULE_stringconstant) {
-                    return StringValue.ParseString(node.GetText());
+
+                    bool requireUnescape = !IsRegexpNode(node);
+                    return StringValue.ParseString(node.GetText(), requireUnescape);
                 }
                 else if (ruleIndex == EsperEPL2GrammarParser.RULE_constant) {
                     return Parse(ruleNode.GetChild(0));
@@ -137,6 +139,29 @@ namespace com.espertech.esper.epl.parse
                     }
                 }
             }
+        }
+        private static bool IsRegexpNode(ITree node, bool nodeFound = false)
+        {
+            var parent = node.Parent;
+            while (parent != null)
+            {
+                if (parent.ChildCount > 1)
+                {
+                    for (int i = 0; i < parent.ChildCount; i++)
+                    {
+                        var child = parent.GetChild(i);
+                        if (child.Payload is CommonToken payload)
+                        {
+                            if (payload.Text == "regexp")
+                                return true;
+                        }
+                    }
+                }
+
+                parent = parent.Parent;
+            }
+
+            return false;
         }
 
         private static IRuleNode FindChildRuleByType(ITree node, int ruleNum)

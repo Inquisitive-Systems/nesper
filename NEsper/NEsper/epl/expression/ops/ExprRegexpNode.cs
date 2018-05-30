@@ -101,7 +101,7 @@ namespace com.espertech.esper.epl.expression.ops
                     }
                     try
                     {
-                        _pattern = new Regex(String.Format("^{0}$", patternText));
+                        _pattern = new Regex(patternText, RegexOptions.IgnoreCase);
                     }
                     catch (ArgumentException ex)
                     {
@@ -119,8 +119,7 @@ namespace com.espertech.esper.epl.expression.ops
                         }
                         try
                         {
-                            _pattern = new Regex(String.Format("^{0}$", patternText));
-
+                            _pattern = new Regex(patternText);
                         }
                         catch (ArgumentException ex)
                         {

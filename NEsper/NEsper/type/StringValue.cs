@@ -110,13 +110,13 @@ namespace com.espertech.esper.type
         /// </param>
         /// <returns> parsed value
         /// </returns>
-        public static String ParseString(String value)
+        public static String ParseString(String value, bool requireUnescape = true)
         {
             if ((value.StartsWith("\"")) & (value.EndsWith("\"")) || (value.StartsWith("'")) & (value.EndsWith("'")))
             {
                 if (value.Length > 1)
                 {
-                    if (value.IndexOf('\\') != -1)
+                    if (value.IndexOf('\\') != -1 && requireUnescape)
                     {
                         return Unescape(value.Substring(1, value.Length - 2));
                     }
