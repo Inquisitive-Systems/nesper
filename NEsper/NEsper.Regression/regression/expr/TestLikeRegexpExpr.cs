@@ -7,7 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 using System;
-
+using System.Linq;
 using com.espertech.esper.client;
 using com.espertech.esper.client.scopetest;
 using com.espertech.esper.client.soda;
@@ -71,6 +71,19 @@ namespace com.espertech.esper.regression.expr
             selectTestCase.Events += _testListener.Update;
     
             RunLikeRegexStringAndNull();
+        }
+
+        [Test]
+        public void TestRegexStartsWith()
+        {
+            String caseExpr = @"select p00 as result from " + typeof(SupportBean_S0).FullName +
+                              @" where p00.StartsWith('\\user\\bob', StringComparison.InvariantCultureIgnoreCase)";
+
+            EPStatement selectTestCase = _epService.EPAdministrator.CreateEPL(caseExpr);
+            selectTestCase.Events += _testListener.Update;
+
+            _epService.EPRuntime.SendEvent(new SupportBean_S0(-1, @"\user\bob"));
+            Assert.AreEqual(@"\user\bob" , _testListener.AssertOneGetNewAndReset().Get("result"));
         }
 
         [Test]
