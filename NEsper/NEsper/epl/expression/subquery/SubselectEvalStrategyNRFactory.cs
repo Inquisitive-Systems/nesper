@@ -20,7 +20,7 @@ namespace com.espertech.esper.epl.expression.subquery
     using RelationalComputer = Func<object, object, bool>;
 
     /// <summary>Factory for subselect evaluation strategies.</summary>
-    public class SubselectEvalStrategyNRFactory
+    public static class SubselectEvalStrategyNRFactory
     {
         public static SubselectEvalStrategyNR CreateStrategyExists(ExprSubselectExistsNode subselectExpression) {
             bool aggregated = Aggregated(subselectExpression.SubselectAggregationType);
@@ -78,10 +78,10 @@ namespace com.espertech.esper.epl.expression.subquery
             if (relationalOp != null) {
                 if ((typeOne != typeof(string)) || (typeTwo != typeof(string))) {
                     if (!typeOne.IsNumeric()) {
-                        throw new ExprValidationException("Implicit conversion from datatype '" + Name.Of(typeOne) + "' to numeric is not allowed");
+                        throw new ExprValidationException("Implicit conversion from datatype '" + Name.Clean(typeOne) + "' to numeric is not allowed");
                     }
                     if (!typeTwo.IsNumeric()) {
-                        throw new ExprValidationException("Implicit conversion from datatype '" + Name.Of(typeTwo) + "' to numeric is not allowed");
+                        throw new ExprValidationException("Implicit conversion from datatype '" + Name.Clean(typeTwo) + "' to numeric is not allowed");
                     }
                 }
     
@@ -146,7 +146,7 @@ namespace com.espertech.esper.epl.expression.subquery
             try {
                 coercionType = typeOne.GetCompareToCoercionType(typeTwo);
             } catch (CoercionException ) {
-                throw new ExprValidationException(string.Format("Implicit conversion from datatype '{0}' to '{1}' is not allowed", Name.Of(typeTwo), Name.Of(typeOne)));
+                throw new ExprValidationException(string.Format("Implicit conversion from datatype '{0}' to '{1}' is not allowed", Name.Clean(typeTwo), Name.Clean(typeOne)));
             }
     
             // Check if we need to coerce
@@ -165,7 +165,7 @@ namespace com.espertech.esper.epl.expression.subquery
         }
     
         private static bool Aggregated(ExprSubselectNode.SubqueryAggregationType subqueryAggregationType) {
-            return subqueryAggregationType != null && subqueryAggregationType != ExprSubselectNode.SubqueryAggregationType.NONE;
+            return subqueryAggregationType != ExprSubselectNode.SubqueryAggregationType.NONE;
         }
     }
 } // end of namespace

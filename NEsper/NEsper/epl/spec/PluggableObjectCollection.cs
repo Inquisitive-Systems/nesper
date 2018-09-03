@@ -38,6 +38,7 @@ namespace com.espertech.esper.epl.spec
         /// </summary>
         /// <param name="configurationPlugInViews">is a list of configured plug-in view objects.</param>
         /// <param name="configurationPlugInVirtualDW">The configuration plug in virtual DW.</param>
+        /// <param name="engineImportService">The engine import service.</param>
         /// <throws>ConfigurationException if the configured views don't resolve</throws>
         public void AddViews(
             IList<ConfigurationPlugInView> configurationPlugInViews,
@@ -152,7 +153,6 @@ namespace com.espertech.esper.epl.spec
             Object optionalCustomConfig,
             EngineImportService engineImportService)
         {
-
             if (factoryClassName == null)
             {
                 throw new ConfigurationException("Factory class name has not been supplied for object '" + name + "'");

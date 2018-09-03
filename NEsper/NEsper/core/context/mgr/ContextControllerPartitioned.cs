@@ -21,6 +21,7 @@ namespace com.espertech.esper.core.context.mgr
         : ContextController
         , ContextControllerPartitionedInstanceCreateCallback
     {
+        private readonly object _lock;
         private readonly int _pathId;
         private readonly ContextControllerLifecycleCallback _activationCallback;
         private readonly ContextControllerPartitionedFactoryImpl _factory;
@@ -36,6 +37,7 @@ namespace com.espertech.esper.core.context.mgr
 
         public ContextControllerPartitioned(int pathId, ContextControllerLifecycleCallback activationCallback, ContextControllerPartitionedFactoryImpl factory)
         {
+            _lock = new object();
             _pathId = pathId;
             _activationCallback = activationCallback;
             _factory = factory;
@@ -55,10 +57,8 @@ namespace com.espertech.esper.core.context.mgr
         public void VisitSelectedPartitions(ContextPartitionSelector contextPartitionSelector, ContextPartitionVisitor visitor)
         {
             var nestingLevel = _factory.FactoryContext.NestingLevel;
-            if (contextPartitionSelector is ContextPartitionSelectorFiltered)
+            if (contextPartitionSelector is ContextPartitionSelectorFiltered filtered)
             {
-                var filtered = (ContextPartitionSelectorFiltered)contextPartitionSelector;
-
                 var identifier = new ContextPartitionIdentifierPartitioned();
                 foreach (var entry in _partitionKeys)
                 {
@@ -73,10 +73,9 @@ namespace com.espertech.esper.core.context.mgr
                 }
                 return;
             }
-            else if (contextPartitionSelector is ContextPartitionSelectorSegmented)
+            else if (contextPartitionSelector is ContextPartitionSelectorSegmented partitioned)
             {
-                var partitioned = (ContextPartitionSelectorSegmented)contextPartitionSelector;
-                if (partitioned.PartitionKeys == null || partitioned.PartitionKeys.IsEmpty())
+                if (partitioned.PartitionKeys?.IsEmpty() != false)
                 {
                     return;
                 }
@@ -84,20 +83,18 @@ namespace com.espertech.esper.core.context.mgr
                 {
                     var key = GetKeyObjectForLookup(keyObjects);
                     var instanceHandle = _partitionKeys.Get(key);
-                    if (instanceHandle != null && instanceHandle.ContextPartitionOrPathId != null)
+                    if (instanceHandle != null)
                     {
                         visitor.Visit(nestingLevel, _pathId, _factory.Binding, keyObjects, this, instanceHandle);
                     }
                 }
                 return;
             }
-            else if (contextPartitionSelector is ContextPartitionSelectorById)
+            else if (contextPartitionSelector is ContextPartitionSelectorById filteredById)
             {
-                var filtered = (ContextPartitionSelectorById)contextPartitionSelector;
-
                 foreach (var entry in _partitionKeys)
                 {
-                    if (filtered.ContextPartitionIds.Contains(entry.Value.ContextPartitionOrPathId))
+                    if (filteredById.ContextPartitionIds.Contains(entry.Value.ContextPartitionOrPathId))
                     {
                         visitor.Visit(nestingLevel, _pathId, _factory.Binding, GetKeyObjectsAccountForMultikey(entry.Key), this, entry.Value);
                     }
@@ -161,7 +158,7 @@ namespace com.espertech.esper.core.context.mgr
 
         public void Deactivate()
         {
-            lock (this)
+            lock (_lock)
             {
                 var factoryContext = _factory.FactoryContext;
                 foreach (var callback in _filterCallbacks)
@@ -177,7 +174,7 @@ namespace com.espertech.esper.core.context.mgr
 
         public void Create(Object key, EventBean theEvent)
         {
-            lock (this)
+            lock (_lock)
             {
                 var exists = _partitionKeys.ContainsKey(key);
                 if (exists)
@@ -221,9 +218,9 @@ namespace com.espertech.esper.core.context.mgr
 
         private Object[] GetKeyObjectsAccountForMultikey(Object key)
         {
-            if (key is MultiKeyUntyped)
+            if (key is MultiKeyUntyped untyped)
             {
-                return ((MultiKeyUntyped)key).Keys;
+                return untyped.Keys;
             }
             else
             {

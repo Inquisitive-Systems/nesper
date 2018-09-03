@@ -14,6 +14,8 @@ using System.Linq;
 using com.espertech.esper.client;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
+using com.espertech.esper.compat.threading;
 using com.espertech.esper.core.service;
 using com.espertech.esper.epl.core;
 using com.espertech.esper.epl.expression.core;
@@ -26,6 +28,8 @@ using com.espertech.esper.schedule;
 using com.espertech.esper.script;
 using com.espertech.esper.util;
 
+using static com.espertech.esper.util.TypeHelper;
+
 namespace com.espertech.esper.epl.property
 {
     /// <summary>
@@ -36,6 +40,7 @@ namespace com.espertech.esper.epl.property
         /// <summary>
         /// Makes the property evaluator.
         /// </summary>
+        /// <param name="container">The container.</param>
         /// <param name="spec">is the property specification</param>
         /// <param name="sourceEventType">the event type</param>
         /// <param name="optionalSourceStreamName">the source stream name</param>
@@ -54,24 +59,10 @@ namespace com.espertech.esper.epl.property
         /// <param name="namedWindowMgmtService">The named window service.</param>
         /// <param name="statementExtensionSvcContext">The statement extension SVC context.</param>
         /// <returns>
-        /// propert evaluator
+        /// property evaluator
         /// </returns>
-        /// <exception cref="ExprValidationException">Missing @type(name) declaration providing the event type name of the return type for expression ' +
-        /// ExprNodeUtility.ToExpressionStringMinPrecedenceSafe(atom.SplitterExpression) + '
-        /// or
-        /// Event type by name ' + atom.OptionalResultEventType + ' could not be found
-        /// or
-        /// Event type ' + streamEventType.Name + ' underlying type  + streamEventType.UnderlyingType.Name +
-        /// cannot be assigned a value of type  + returnType.GetTypeNameFullyQualPretty()
-        /// or
-        /// Return type of expression ' + ExprNodeUtility.ToExpressionStringMinPrecedenceSafe(atom.SplitterExpression) + ' is ' + returnType.Name + ', expected an Iterable or array result
-        /// or
-        /// Property rename ' + rawStreamSpec.MaskTypeName + ' not found in path
-        /// or
-        /// Expression in a property-selection may not utilize  + isMinimal</exception>
-        /// <exception cref="IllegalStateException">Unknown select clause item: + raw</exception>
-        /// <throws>ExprValidationException if any expressions could not be verified</throws>
         public static PropertyEvaluator MakeEvaluator(
+            IContainer container,
             PropertyEvalSpec spec,
             EventType sourceEventType,
             string optionalSourceStreamName,
@@ -100,7 +91,7 @@ namespace com.espertech.esper.epl.property
             var streamNames = new List<string>();
             var streamNameAndNumber = new Dictionary<string, int>().WithNullSupport();
             var expressionTexts = new List<string>();
-            var validateContext = new ExprEvaluatorContextTimeOnly(timeProvider);
+            var validateContext = new ExprEvaluatorContextTimeOnly(container, timeProvider);
 
             streamEventTypes.Add(sourceEventType);
             streamNames.Add(optionalSourceStreamName);
@@ -136,10 +127,7 @@ namespace com.espertech.esper.epl.property
                 // evaluate splitter expression
                 if (containedEventEval == null)
                 {
-                    ExprNodeUtility.ValidatePlainExpression(
-                        ExprNodeOrigin.CONTAINEDEVENT,
-                        ExprNodeUtility.ToExpressionStringMinPrecedenceSafe(atom.SplitterExpression),
-                        atom.SplitterExpression);
+                    ExprNodeUtility.ValidatePlainExpression(ExprNodeOrigin.CONTAINEDEVENT, atom.SplitterExpression);
 
                     var availableTypes = streamEventTypes.ToArray();
                     var availableStreamNames = streamNames.ToArray();
@@ -148,8 +136,19 @@ namespace com.espertech.esper.epl.property
                     StreamTypeService streamTypeService = new StreamTypeServiceImpl(
                         availableTypes, availableStreamNames, isIStreamOnly, engineURI, false);
                     var validationContext = new ExprValidationContext(
-                        streamTypeService, engineImportService, statementExtensionSvcContext, null, timeProvider, variableService, tableService,
-                        validateContext, eventAdapterService, statementName, statementId, annotations, null, scriptingService,
+                        container,
+                        streamTypeService,
+                        engineImportService,
+                        statementExtensionSvcContext, null,
+                        timeProvider, 
+                        variableService,
+                        tableService,
+                        validateContext, 
+                        eventAdapterService, 
+                        statementName, 
+                        statementId, 
+                        annotations, null, 
+                        scriptingService,
                         false, false, true, false, null, false);
                     var validatedExprNode = ExprNodeUtility.GetValidatedSubtree(
                         ExprNodeOrigin.CONTAINEDEVENT, atom.SplitterExpression, validationContext);
@@ -216,8 +215,8 @@ namespace com.espertech.esper.epl.property
                             {
                                 throw new ExprValidationException(
                                     "Event type '" + streamEventType.Name + "' underlying type " +
-                                    streamEventType.UnderlyingType.FullName +
-                                    " cannot be assigned a value of type " + TypeHelper.GetTypeNameFullyQualPretty(returnType));
+                                    streamEventType.UnderlyingType.GetCleanName() +
+                                    " cannot be assigned a value of type " + returnType.GetCleanName());
                             }
                         }
                         else if (GenericExtensions.IsGenericEnumerable(returnType) || returnType.IsImplementsInterface<IEnumerable>())
@@ -229,7 +228,7 @@ namespace com.espertech.esper.epl.property
                             throw new ExprValidationException(
                                 "Return type of expression '" +
                                 ExprNodeUtility.ToExpressionStringMinPrecedenceSafe(atom.SplitterExpression) + "' is '" +
-                                returnType.FullName + "', expected an Iterable or array result");
+                                returnType.GetCleanName() + "', expected an Iterable or array result");
                         }
                         containedEventEval = new ContainedEventEvalExprNode(evaluator, eventBeanFactory);
                     }
@@ -252,8 +251,19 @@ namespace com.espertech.esper.epl.property
                     StreamTypeService streamTypeService = new StreamTypeServiceImpl(
                         whereTypes, whereStreamNames, isIStreamOnly, engineURI, false);
                     var validationContext = new ExprValidationContext(
-                        streamTypeService, engineImportService, statementExtensionSvcContext, null, timeProvider, variableService, tableService,
-                        validateContext, eventAdapterService, statementName, statementId, annotations, null, scriptingService,
+                        container,
+                        streamTypeService, 
+                        engineImportService, 
+                        statementExtensionSvcContext, null, 
+                        timeProvider, 
+                        variableService,
+                        tableService,
+                        validateContext,
+                        eventAdapterService, 
+                        statementName, 
+                        statementId, 
+                        annotations, null, 
+                        scriptingService,
                         false, false, true, false, null, false);
                     whereClauses[i] =
                         ExprNodeUtility.GetValidatedSubtree(
@@ -270,8 +280,19 @@ namespace com.espertech.esper.epl.property
                     StreamTypeService streamTypeService = new StreamTypeServiceImpl(
                         whereTypes, whereStreamNames, isIStreamOnly, engineURI, false);
                     var validationContext = new ExprValidationContext(
-                        streamTypeService, engineImportService, statementExtensionSvcContext, null, timeProvider, variableService, tableService,
-                        validateContext, eventAdapterService, statementName, statementId, annotations, null, scriptingService,
+                        container,
+                        streamTypeService,
+                        engineImportService, 
+                        statementExtensionSvcContext, null,
+                        timeProvider,
+                        variableService, 
+                        tableService,
+                        validateContext, 
+                        eventAdapterService, 
+                        statementName, 
+                        statementId, 
+                        annotations, null,
+                        scriptingService,
                         false, false, true, false, null, false);
 
                     foreach (var raw in atom.OptionalSelectClause.SelectExprList)
@@ -363,7 +384,9 @@ namespace com.espertech.esper.epl.property
 
                 var cumulativeSelectArr = cumulativeSelectClause.ToArray();
                 var selectExpr = SelectExprProcessorFactory.GetProcessor(
-                    assignedTypeNumberStack, cumulativeSelectArr, false, null, null, null, streamTypeService,
+                    container,
+                    assignedTypeNumberStack, 
+                    cumulativeSelectArr, false, null, null, null, streamTypeService,
                     eventAdapterService, null, null, null, engineImportService, validateContext, variableService,
                     scriptingService,
                     tableService, timeProvider, engineURI, statementId, statementName, annotations, null, configuration, null,

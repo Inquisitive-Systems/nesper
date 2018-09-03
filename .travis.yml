@@ -1,0 +1,4 @@
+language: csharp
+solution: NEsper.sln
+dist: trusty
+dotnet: 2.0.0

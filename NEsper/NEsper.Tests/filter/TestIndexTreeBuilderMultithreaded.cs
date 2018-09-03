@@ -14,11 +14,13 @@ using System.Threading;
 using com.espertech.esper.client;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.logging;
 using com.espertech.esper.compat.threading;
 using com.espertech.esper.supportunit.bean;
 using com.espertech.esper.supportunit.events;
 using com.espertech.esper.supportunit.filter;
+using com.espertech.esper.supportunit.util;
 
 using NUnit.Framework;
 
@@ -36,14 +38,18 @@ namespace com.espertech.esper.filter
         private FilterHandleSetNode _topNode;
         private List<FilterHandle> _filterCallbacks;
         private List<ArrayDeque<EventTypeIndexBuilderIndexLookupablePair>> _pathsAddedTo;
-        private FilterServiceGranularLockFactory _lockFactory =
-            new FilterServiceGranularLockFactoryReentrant();
-    
+        private FilterServiceGranularLockFactory _lockFactory;
+
+        private IContainer _container;
+
         [SetUp]
         public void SetUp()
         {
+            _container = SupportContainer.Reset();
+
+            _lockFactory = new FilterServiceGranularLockFactoryReentrant(_container.RWLockManager());
             _eventType = SupportEventTypeFactory.CreateBeanType(typeof(SupportBean));
-            _topNode = new FilterHandleSetNode(ReaderWriterLockManager.CreateDefaultLock());
+            _topNode = new FilterHandleSetNode(_container.RWLockManager().CreateDefaultLock());
             _filterCallbacks = new List<FilterHandle>();
             _pathsAddedTo = new List<ArrayDeque<EventTypeIndexBuilderIndexLookupablePair>>();
     
@@ -67,8 +73,9 @@ namespace com.espertech.esper.filter
     
             _testFilterSpecs.Add(MakeSpec(new Object[] { "DoublePrimitive", FilterOperator.EQUAL, 99.99,
                                                          "IntPrimitive", FilterOperator.LESS, 1}));
-            _matchedEvents.Add(MakeEvent(0, 99.99)); 
-    
+            _matchedEvents.Add(MakeEvent(0, 99.99));
+            _unmatchedEvents.Add(MakeEvent(2, 0.5));
+
             _testFilterSpecs.Add(MakeSpec(new Object[] { "DoublePrimitive", FilterOperator.GREATER, .99,
                                                          "IntPrimitive", FilterOperator.EQUAL, 5001}));
             _matchedEvents.Add(MakeEvent(5001, 1.1));
@@ -142,21 +149,22 @@ namespace com.espertech.esper.filter
         [Test]
         public void TestMultithreaded()
         {
-            var topNode = new FilterHandleSetNode(ReaderWriterLockManager.CreateDefaultLock());
+            var topNode = new FilterHandleSetNode(_container.RWLockManager().CreateDefaultLock());
     
             PerformMultithreadedTest(topNode, 2, 1000, 1);
             PerformMultithreadedTest(topNode, 3, 1000, 1);
             PerformMultithreadedTest(topNode, 4, 1000, 1);
 
-            PerformMultithreadedTest(new FilterHandleSetNode(ReaderWriterLockManager.CreateDefaultLock()), 2, 1000, 1);
-            PerformMultithreadedTest(new FilterHandleSetNode(ReaderWriterLockManager.CreateDefaultLock()), 3, 1000, 1);
-            PerformMultithreadedTest(new FilterHandleSetNode(ReaderWriterLockManager.CreateDefaultLock()), 4, 1000, 1);
+            PerformMultithreadedTest(new FilterHandleSetNode(_container.RWLockManager().CreateDefaultLock()), 2, 1000, 1);
+            PerformMultithreadedTest(new FilterHandleSetNode(_container.RWLockManager().CreateDefaultLock()), 3, 1000, 1);
+            PerformMultithreadedTest(new FilterHandleSetNode(_container.RWLockManager().CreateDefaultLock()), 4, 1000, 1);
         }
     
-        private void PerformMultithreadedTest(FilterHandleSetNode topNode,
-                                 int numberOfThreads,
-                                 int numberOfRunnables,
-                                 int numberOfSecondsSleep)
+        private void PerformMultithreadedTest(
+            FilterHandleSetNode topNode,
+            int numberOfThreads,
+            int numberOfRunnables,
+            int numberOfSecondsSleep)
         {
             Log.Info(".performMultithreadedTest Loading thread pool work queue,numberOfRunnables=" + numberOfRunnables);
 
@@ -164,7 +172,11 @@ namespace com.espertech.esper.filter
     
             for (var i = 0; i < numberOfRunnables; i++)
             {
-                var runnable = new IndexTreeBuilderRunnable(_eventType, topNode, _testFilterSpecs, _matchedEvents, _unmatchedEvents);
+                var runnable = new IndexTreeBuilderRunnable(
+                    _eventType, topNode, 
+                    _testFilterSpecs, 
+                    _matchedEvents, 
+                    _unmatchedEvents);
                 pool.Submit(runnable.Run);
             }
     
@@ -178,8 +190,9 @@ namespace com.espertech.esper.filter
                      "  completed=" + pool.NumExecuted);
     
             pool.Shutdown();
-            pool.AwaitTermination(TimeSpan.FromSeconds(1));
-    
+            pool.AwaitTermination(TimeSpan.FromSeconds(5));
+            //pool.AwaitTermination(TimeSpan.FromSeconds(1));
+
             Assert.AreEqual(pool.NumExecuted, numberOfRunnables);
         }
     

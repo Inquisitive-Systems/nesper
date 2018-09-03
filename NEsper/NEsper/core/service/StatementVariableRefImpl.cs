@@ -8,7 +8,9 @@
 
 using System;
 using System.Collections.Generic;
+using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.logging;
 using com.espertech.esper.compat.threading;
 using com.espertech.esper.epl.expression.table;
@@ -33,13 +35,22 @@ namespace com.espertech.esper.core.service
         private readonly NamedWindowMgmtService _namedWindowMgmtService;
         private readonly ICollection<String> _configuredVariables;
 
-        /// <summary>Ctor. </summary>
+        /// <summary>
+        /// Ctor.
+        /// </summary>
         /// <param name="variableService">variables</param>
-        public StatementVariableRefImpl(VariableService variableService, TableService tableService, NamedWindowMgmtService namedWindowMgmtService)
+        /// <param name="tableService">The table service.</param>
+        /// <param name="namedWindowMgmtService">The named window MGMT service.</param>
+        /// <param name="lockManager">The lock manager.</param>
+        public StatementVariableRefImpl(
+            VariableService variableService, 
+            TableService tableService, 
+            NamedWindowMgmtService namedWindowMgmtService,
+            IReaderWriterLockManager lockManager)
         {
             _variableToStmt = new Dictionary<String, ICollection<String>>().WithNullSupport();
             _stmtToVariable = new Dictionary<String, ICollection<String>>().WithNullSupport();
-            _mapLock = ReaderWriterLockManager.CreateLock(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            _mapLock = lockManager.CreateLock(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
             _variableService = variableService;
             _tableService = tableService;
             _namedWindowMgmtService = namedWindowMgmtService;

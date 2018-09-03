@@ -8,7 +8,7 @@
 
 using System;
 using System.Collections.Generic;
-
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.threading;
 
 namespace com.espertech.esper.client
@@ -18,6 +18,8 @@ namespace com.espertech.esper.client
     /// </summary>
     public interface EPServiceProvider : IDisposable
     {
+        IContainer Container { get; }
+
         /// <summary> Returns a class instance of EPRuntime.</summary>
         /// <returns> an instance of EPRuntime
         /// </returns>
@@ -83,12 +85,12 @@ namespace com.espertech.esper.client
         /// isolated service provider names
         /// </returns>
         IList<string> EPServiceIsolatedNames { get; }
-                
+
         /// <summary>
         /// Returns the engine-instance global read-write lock.
         /// </summary>
-        /// <para>The <seealso cref="com.espertech.esper.client.EPRuntime.SendEvent" /> method takes a read lock.</para>
-        /// <para>The <seealso cref="com.espertech.esper.client.EPAdministrator.CreateEPL" /> methods take a write lock.</para>
+        /// <para>The EPRuntime.SendEvent method takes a read lock.</para>
+        /// <para>The EPRuntime.CreateEPL methods take a write lock.</para>
         /// <returns>engine instance global read-write lock</returns>
         IReaderWriterLock EngineInstanceWideLock { get; }
 
@@ -119,7 +121,7 @@ namespace com.espertech.esper.client
         /// Gets the service provider.
         /// </summary>
         /// <value>The service provider.</value>
-        public EPServiceProvider ServiceProvider { get; private set; }
+        public EPServiceProvider ServiceProvider { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServiceProviderEventArgs"/> class.

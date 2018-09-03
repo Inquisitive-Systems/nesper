@@ -11,7 +11,9 @@ using System.Collections.Generic;
 
 using com.espertech.esper.client;
 using com.espertech.esper.collection;
+using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.logging;
 using com.espertech.esper.compat.threading;
 using com.espertech.esper.core.thread;
@@ -65,8 +67,9 @@ namespace com.espertech.esper.core.service
         private readonly ICollection<StatementResultListener> _statementOutputHooks;
 
         /// <summary>Buffer for holding dispatchable events. </summary>
-        private IThreadLocal<LinkedList<UniformPair<EventBean[]>>> _lastResults =
-            ThreadLocalManager.Create(() => new LinkedList<UniformPair<EventBean[]>>());
+        private IThreadLocal<LinkedList<UniformPair<EventBean[]>>> _lastResults;
+
+        private IThreadLocalManager _threadLocalManager;
 
         /// <summary>
         /// Ctor.
@@ -75,13 +78,18 @@ namespace com.espertech.esper.core.service
         /// <param name="statementLifecycleSvc">handles persistence for statements</param>
         /// <param name="metricReportingService">for metrics reporting</param>
         /// <param name="threadingService">for outbound threading</param>
-        public StatementResultServiceImpl(String statementName,
-                                          StatementLifecycleSvc statementLifecycleSvc,
-                                          MetricReportingServiceSPI metricReportingService,
-                                          ThreadingService threadingService)
+        /// <param name="threadLocalManager">The thread local manager.</param>
+        public StatementResultServiceImpl(
+            String statementName,
+            StatementLifecycleSvc statementLifecycleSvc,
+            MetricReportingServiceSPI metricReportingService,
+            ThreadingService threadingService,
+            IThreadLocalManager threadLocalManager)
         {
             Log.Debug(".ctor");
 
+            _threadLocalManager = threadLocalManager;
+            _lastResults =  threadLocalManager.Create(() => new LinkedList<UniformPair<EventBean[]>>());
             _isDebugEnabled = ExecutionPathDebugLog.IsEnabled && Log.IsDebugEnabled;
             _statementName = statementName;
             _statementLifecycleSvc = statementLifecycleSvc;
@@ -414,12 +422,10 @@ namespace com.espertech.esper.core.service
                     for (int ii = 0; ii < eventListLength; ii++)
                     {
                         var eventHandler = eventList[ii];
-                        try
-                        {
+                        try {
                             eventHandler.Invoke(this, ev);
                         }
-                        catch (Exception e)
-                        {
+                        catch (Exception e) {
                             Log.Error("Unexpected exception invoking event handler", e);
                         }
                     }
@@ -448,7 +454,7 @@ namespace com.espertech.esper.core.service
 
             Execute();
 
-            _lastResults = ThreadLocalManager.Create(
+            _lastResults = _threadLocalManager.Create(
                 () => new LinkedList<UniformPair<EventBean[]>>());
         }
     }

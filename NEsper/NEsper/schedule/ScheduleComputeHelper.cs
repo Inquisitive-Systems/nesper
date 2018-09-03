@@ -35,7 +35,7 @@ namespace com.espertech.esper.schedule
     /// greater value was supplied, it will reset all higher precision elements to its minimum value.
     /// </summary>
 
-    public sealed class ScheduleComputeHelper
+    public static class ScheduleComputeHelper
     {
         /// <summary>
         /// Computes the next lowest date in milliseconds based on a specification and the
@@ -67,11 +67,11 @@ namespace com.espertech.esper.schedule
             // Add the minimum resolution to the Start time to ensure we don't get the same exact time
             if (spec.UnitValues.ContainsKey(ScheduleUnit.SECONDS))
             {
-                afterTimeInMillis += timeAbacus.GetOneSecond();
+                afterTimeInMillis += timeAbacus.OneSecond;
             }
             else
             {
-                afterTimeInMillis += 60 * timeAbacus.GetOneSecond();
+                afterTimeInMillis += 60 * timeAbacus.OneSecond;
             }
 
             return Compute(spec, afterTimeInMillis, timeZone, timeAbacus);
@@ -436,9 +436,10 @@ namespace com.espertech.esper.schedule
         /// <summary>
         /// Check if this is a valid date.
         /// </summary>
-        /// <param name="day"></param>
-        /// <param name="month"></param>
-        /// <param name="year"></param>
+        /// <param name="timeZone">The time zone.</param>
+        /// <param name="day">The day.</param>
+        /// <param name="month">The month.</param>
+        /// <param name="year">The year.</param>
         /// <returns></returns>
 
         private static bool CheckDayValidInMonth(TimeZoneInfo timeZone, int day, int month, int year)
@@ -465,7 +466,7 @@ namespace com.espertech.esper.schedule
 
         private static int NextValue(ICollection<int> valueSet, int startValue)
         {
-            if (valueSet == null)
+            if ((valueSet == null) || (valueSet.IsEmpty()))
             {
                 return startValue;
             }

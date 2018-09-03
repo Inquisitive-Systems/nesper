@@ -12,6 +12,7 @@ using System.Linq;
 
 using com.espertech.esper.client;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.epl.expression.core;
 using com.espertech.esper.epl.@join.exec.@base;
 using com.espertech.esper.epl.join.plan;
 using com.espertech.esper.filter;
@@ -53,9 +54,13 @@ namespace com.espertech.esper.epl.join.table
         /// Returns the set of events that have the same property value as the given event.
         /// </summary>
         /// <param name="keyStart">to compare against</param>
+        /// <param name="includeStart">if set to <c>true</c> [include start].</param>
         /// <param name="keyEnd">to compare against</param>
+        /// <param name="includeEnd">if set to <c>true</c> [include end].</param>
         /// <param name="allowRangeReversal">indicate whether "a between 60 and 50" should return no results (equivalent to a&gt;= X and a &lt;=Y) or should return results (equivalent to 'between' and 'in'</param>
-        /// <returns>set of events with property value, or null if none found (never returns zero-sized set)</returns>
+        /// <returns>
+        /// set of events with property value, or null if none found (never returns zero-sized set)
+        /// </returns>
         public override ISet<EventBean> LookupRange(object keyStart, bool includeStart, object keyEnd, bool includeEnd, bool allowRangeReversal)
         {
             if (keyStart == null || keyEnd == null)
@@ -69,7 +74,7 @@ namespace com.espertech.esper.epl.join.table
             {
                 submap = _propertyIndex.Between(keyStart, includeStart, keyEnd, includeEnd);
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
                 if (allowRangeReversal)
                 {
@@ -96,7 +101,7 @@ namespace com.espertech.esper.epl.join.table
             {
                 submap = _propertyIndex.Between(keyStart, includeStart, keyEnd, includeEnd);
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
                 if (allowRangeReversal)
                 {
@@ -231,7 +236,7 @@ namespace com.espertech.esper.epl.join.table
             get { return _propertyIndex; }
         }
 
-        public override void Add(EventBean theEvent)
+        public override void Add(EventBean theEvent, ExprEvaluatorContext exprEvaluatorContext)
         {
             var key = GetIndexedValue(theEvent);
 
@@ -243,22 +248,13 @@ namespace com.espertech.esper.epl.join.table
                 return;
             }
 
-#if true
             var events = _propertyIndex.TryInsert(
                 key, () => new LinkedHashSet<EventBean>());
-#else
-	        var events = _propertyIndex.Get(key);
-	        if (events == null)
-	        {
-	            events = new LinkedHashSet<EventBean>();
-	            _propertyIndex.Put(key, events);
-	        }
-#endif
 
             events.Add(theEvent);
         }
 
-        public override void Remove(EventBean theEvent)
+        public override void Remove(EventBean theEvent, ExprEvaluatorContext exprEvaluatorContext)
         {
             var key = GetIndexedValue(theEvent);
 

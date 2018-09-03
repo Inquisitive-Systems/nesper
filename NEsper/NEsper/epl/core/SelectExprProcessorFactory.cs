@@ -13,7 +13,9 @@ using com.espertech.esper.client;
 using com.espertech.esper.client.soda;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.logging;
+using com.espertech.esper.compat.threading;
 using com.espertech.esper.core.service;
 using com.espertech.esper.epl.core.eval;
 using com.espertech.esper.epl.expression.core;
@@ -41,6 +43,7 @@ namespace com.espertech.esper.epl.core
         /// <summary>
         /// Returns the processor to use for a given select-clause.
         /// </summary>
+        /// <param name="container">The container.</param>
         /// <param name="assignedTypeNumberStack">The assigned type number stack.</param>
         /// <param name="selectionList">the list of select clause elements/items, which are expected to have been validated</param>
         /// <param name="isUsingWildcard">true if the wildcard (*) occurs in the select clause</param>
@@ -52,7 +55,7 @@ namespace com.espertech.esper.epl.core
         /// <param name="statementResultService">handles listeners/subscriptions awareness to reduce output result generation</param>
         /// <param name="valueAddEventService">service that handles update events and variant events</param>
         /// <param name="selectExprEventTypeRegistry">registry for event type to statements</param>
-        /// <param name="engineImportService"></param>
+        /// <param name="engineImportService">The engine import service.</param>
         /// <param name="exprEvaluatorContext">context for expression evalauation</param>
         /// <param name="variableService">The variable service.</param>
         /// <param name="scriptingService">The scripting service.</param>
@@ -67,8 +70,8 @@ namespace com.espertech.esper.epl.core
         /// <param name="selectExprProcessorCallback">The select expr processor callback.</param>
         /// <param name="namedWindowMgmtService">The named window service.</param>
         /// <param name="intoTableClause">The into table clause.</param>
-        /// <param name="groupByRollupInfo"></param>
-        /// <param name="statementExtensionSvcContext"></param>
+        /// <param name="groupByRollupInfo">The group by rollup information.</param>
+        /// <param name="statementExtensionSvcContext">The statement extension SVC context.</param>
         /// <returns>
         /// select-clause expression processor
         /// </returns>
@@ -83,6 +86,7 @@ namespace com.espertech.esper.epl.core
         /// Expected any of the  + Arrays.ToString(ForClauseKeyword.Values()).ToLowerCase() +  for-clause keywords after reserved keyword 'for'</exception>
         /// <throws>ExprValidationException to indicate the select expression cannot be validated</throws>
         public static SelectExprProcessor GetProcessor(
+            IContainer container,
             ICollection<int> assignedTypeNumberStack,
             SelectClauseElementCompiled[] selectionList,
             bool isUsingWildcard,
@@ -180,7 +184,23 @@ namespace com.espertech.esper.epl.core
 
                         StreamTypeService type = new StreamTypeServiceImpl(synthetic.ResultEventType, null, false, engineURI);
                         groupedDeliveryExpr = new ExprNode[item.Expressions.Count];
-                        var validationContext = new ExprValidationContext(type, engineImportService, statementExtensionSvcContext, null, timeProvider, variableService, tableService, exprEvaluatorContext, eventAdapterService, statementName, statementId, annotations, null, scriptingService, false, false, true, false, intoTableClause == null ? null : intoTableClause.Name, false);  // no context descriptor available
+                        var validationContext = new ExprValidationContext(
+                            container,
+                            type, 
+                            engineImportService, 
+                            statementExtensionSvcContext, 
+                            null, 
+                            timeProvider, 
+                            variableService, 
+                            tableService, 
+                            exprEvaluatorContext,
+                            eventAdapterService,
+                            statementName, 
+                            statementId, annotations, null,
+                            scriptingService,
+                            false, false, true, false, 
+                            intoTableClause == null ? null : intoTableClause.Name, 
+                            false);  // no context descriptor available
                         for (var i = 0; i < item.Expressions.Count; i++)
                         {
                             groupedDeliveryExpr[i] = ExprNodeUtility.GetValidatedSubtree(ExprNodeOrigin.FORCLAUSE, item.Expressions[i], validationContext);
@@ -263,7 +283,7 @@ namespace com.espertech.esper.epl.core
                 optionalInsertIntoEventType, isUsingWildcard, typeService, eventAdapterService, valueAddEventService,
                 selectExprEventTypeRegistry, engineImportService, statementId, statementName, annotations, configuration,
                 namedWindowMgmtService, tableService, groupByRollupInfo);
-            SelectExprProcessor processor = factory.Evaluator;
+            SelectExprProcessor processor = factory.GetEvaluator();
 
             // add reference to the type obtained
             var type = (EventTypeSPI)processor.ResultEventType;

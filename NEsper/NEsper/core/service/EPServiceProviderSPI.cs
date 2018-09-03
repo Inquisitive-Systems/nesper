@@ -9,6 +9,7 @@
 using System;
 
 using com.espertech.esper.client;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.core.context.mgr;
 using com.espertech.esper.core.deploy;
 using com.espertech.esper.core.thread;
@@ -130,7 +131,7 @@ namespace com.espertech.esper.core.service
         void Initialize(long? currentTime);
     }
 
-    public class EPServiceProviderConstants
+    public static class EPServiceProviderConstants
     {
         /// <summary>For the default provider instance, which carries a null provider URI, the URI value is "default". </summary>
         public static readonly String DEFAULT_ENGINE_URI = "default";

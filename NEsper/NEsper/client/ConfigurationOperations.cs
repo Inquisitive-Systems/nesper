@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 
 using com.espertech.esper.compat;
+using com.espertech.esper.compat.container;
 
 namespace com.espertech.esper.client
 {
@@ -70,6 +71,7 @@ namespace com.espertech.esper.client
         /// </param>
         /// <exception cref="ConfigurationException">is thrown to indicate a problem adding the aggregation function</exception>
         void AddPlugInAggregationFunctionFactory(string functionName, string aggregationFactoryClassName);
+        void AddPlugInAggregationFunctionFactory(string functionName, Type aggregationFactoryClass);
 
         /// <summary>
         ///     Adds a plug-in single-row function given a EPL function name, a class name, method name and setting for value-cache
@@ -121,6 +123,7 @@ namespace com.espertech.esper.client
         /// <param name="methodName">is the static method provided by the class that : the single-row function</param>
         /// <exception cref="ConfigurationException">is thrown to indicate a problem adding the single-row function</exception>
         void AddPlugInSingleRowFunction(string functionName, string className, string methodName);
+        void AddPlugInSingleRowFunction(string functionName, Type clazz, string methodName);
 
         /// <summary>
         ///     Adds a plug-in single-row function given a EPL function name, a class name, method name and setting for value-cache
@@ -642,14 +645,14 @@ namespace com.espertech.esper.client
         ///         The method does not remove variant streams and does not remove revision event types.
         ///     </para>
         /// </summary>
-        /// <param name="name">the name of the event type to remove</param>
+        /// <param name="eventTypeName">the name of the event type to remove</param>
         /// <param name="force">
         ///     false to include a check that the type is no longer in use, true to force the remove
         ///     even though there can be one or more statements relying on that type
         /// </param>
         /// <exception cref="ConfigurationException">thrown to indicate that the remove operation failed</exception>
         /// <returns>indicator whether the event type was found and removed</returns>
-        bool RemoveEventType(string name, bool force);
+        bool RemoveEventType(string eventTypeName, bool force);
 
         /// <summary>
         ///     Return the set of statement names of statements that are in started or stopped state and
@@ -781,6 +784,7 @@ namespace com.espertech.esper.client
         /// <param name="eventClass">assembly qualified class name of the event type</param>
         /// <param name="legacyEventTypeDesc">descriptor containing property and mapping information for legacy type events</param>
         void AddEventType(string eventTypeName, string eventClass, ConfigurationEventTypeLegacy legacyEventTypeDesc);
+        void AddEventType(string eventTypeName, Type eventClass, ConfigurationEventTypeLegacy legacyEventTypeDesc);
 
         /// <summary>
         ///     Add a new plug-in view for use as a data window or derived value view.
@@ -789,6 +793,7 @@ namespace com.espertech.esper.client
         /// <param name="name">view name</param>
         /// <param name="viewFactoryClass">factory class of view</param>
         void AddPlugInView(string @namespace, string name, string viewFactoryClass);
+        void AddPlugInView(string @namespace, string name, Type viewFactoryClass);
 
         /// <summary>
         ///     Set the current maximum pattern sub-expression count.
@@ -848,5 +853,36 @@ namespace com.espertech.esper.client
         /// </summary>
         /// <param name="singleRowFunction">configuration</param>
         void AddPlugInSingleRowFunction(ConfigurationPlugInSingleRowFunction singleRowFunction);
+    }
+
+    public static class ConfigurationOperationsExtensions
+    {
+        public static void AddPlugInSingleRowFunction(
+            this ConfigurationOperations configuration,
+            string functionName,
+            Type clazz,
+            string methodName,
+            ValueCacheEnum valueCache,
+            FilterOptimizableEnum filterOptimizable,
+            bool rethrowExceptions)
+        {
+            configuration.AddPlugInSingleRowFunction(
+                functionName, clazz.AssemblyQualifiedName, methodName, valueCache,
+                filterOptimizable, rethrowExceptions);
+        }
+
+        public static void AddPlugInSingleRowFunction(
+            this ConfigurationOperations configuration,
+            string functionName,
+            Type clazz,
+            string methodName,
+            FilterOptimizableEnum filterOptimizable)
+        {
+            configuration.AddPlugInSingleRowFunction(
+                functionName,
+                clazz.AssemblyQualifiedName,
+                methodName,
+                filterOptimizable);
+        }
     }
 } // end of namespace

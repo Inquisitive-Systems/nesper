@@ -15,16 +15,20 @@ namespace com.espertech.esper.compat.threading
         : IReaderWriterLock
         , IReaderWriterLockCommon
     {
+#if DEBUG && DIAGNOSTICS
+        private static readonly AtomicLong _sid = new AtomicLong();
+        private readonly long _id = _sid.GetAndIncrement();
+#endif
         private readonly ReaderWriterLock _rwLock;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StandardReaderWriterLock"/> class.
         /// </summary>
-        public StandardReaderWriterLock()
+        public StandardReaderWriterLock(int lockTimeout)
         {
             _rwLock = new ReaderWriterLock();
-            ReadLock = new CommonReadLock(this);
-            WriteLock = new CommonWriteLock(this);
+            ReadLock = new CommonReadLock(this, lockTimeout);
+            WriteLock = new CommonWriteLock(this, lockTimeout);
         }
 
         /// <summary>
@@ -68,11 +72,20 @@ namespace com.espertech.esper.compat.threading
         /// <param name="timeout">The timeout.</param>
         public void AcquireReaderLock(long timeout)
         {
-            try
-            {
+            try {
+#if DEBUG && DIAGNOSTICS
+                System.Diagnostics.Debug.WriteLine(
+                    "{0}: AcquireReaderLock: {1} - Start",
+                    Thread.CurrentThread.ManagedThreadId, _id);
+#endif
                 _rwLock.AcquireReaderLock((int) timeout);
+#if DEBUG && DIAGNOSTICS
+                System.Diagnostics.Debug.WriteLine(
+                    "{0}: AcquireReaderLock: {1} - Acquired",
+                    Thread.CurrentThread.ManagedThreadId, _id);
+#endif
             }
-            catch(ApplicationException)
+            catch (ApplicationException)
             {
                 throw new TimeoutException("ReaderWriterLock timeout expired");
             }
@@ -86,9 +99,19 @@ namespace com.espertech.esper.compat.threading
         {
             try
             {
+#if DEBUG && DIAGNOSTICS
+                System.Diagnostics.Debug.WriteLine(
+                    "{0}: AcquireWriterLock: {1} - Start",
+                    Thread.CurrentThread.ManagedThreadId, _id);
+#endif
                 _rwLock.AcquireWriterLock((int) timeout);
+#if DEBUG && DIAGNOSTICS
+                System.Diagnostics.Debug.WriteLine(
+                    "{0}: AcquireWriterLock: {1} - Acquired",
+                    Thread.CurrentThread.ManagedThreadId, _id);
+#endif
             }
-            catch(ApplicationException)
+            catch (ApplicationException)
             {
                 throw new TimeoutException("ReaderWriterLock timeout expired");
             }
@@ -99,7 +122,17 @@ namespace com.espertech.esper.compat.threading
         /// </summary>
         public void ReleaseReaderLock()
         {
+#if DEBUG && DIAGNOSTICS
+            System.Diagnostics.Debug.WriteLine(
+                "{0}: ReleaseReaderLock: {1} - Start",
+                Thread.CurrentThread.ManagedThreadId, _id);
+#endif
             _rwLock.ReleaseReaderLock();
+#if DEBUG && DIAGNOSTICS
+            System.Diagnostics.Debug.WriteLine(
+                "{0}: ReleaseReaderLock: {1} - Released",
+                Thread.CurrentThread.ManagedThreadId, _id);
+#endif
         }
 
         /// <summary>
@@ -107,7 +140,17 @@ namespace com.espertech.esper.compat.threading
         /// </summary>
         public void ReleaseWriterLock()
         {
+#if DEBUG && DIAGNOSTICS
+            System.Diagnostics.Debug.WriteLine(
+                "{0}: ReleaseWriterLock: {1} - Start",
+                Thread.CurrentThread.ManagedThreadId, _id);
+#endif
             _rwLock.ReleaseWriterLock();
+#if DEBUG && DIAGNOSTICS
+            System.Diagnostics.Debug.WriteLine(
+                "{0}: ReleaseWriterLock: {1} - Released",
+                Thread.CurrentThread.ManagedThreadId, _id);
+#endif
         }
     }
 }

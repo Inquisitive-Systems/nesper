@@ -15,6 +15,7 @@ using Antlr4.Runtime.Tree;
 using com.espertech.esper.client;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.threading;
 using com.espertech.esper.epl.expression.core;
 using com.espertech.esper.epl.expression.ops;
 using com.espertech.esper.epl.expression.time;
@@ -27,7 +28,7 @@ using com.espertech.esper.type;
 
 namespace com.espertech.esper.epl.parse
 {
-    public class ASTExprHelper
+    public static class ASTExprHelper
     {
         public static ExprNode ResolvePropertyOrVariableIdentifier(String identifier, VariableService variableService, StatementSpecRaw spec)
         {
@@ -65,7 +66,8 @@ namespace com.espertech.esper.epl.parse
             VariableService variableService,
             StatementSpecRaw spec,
             ConfigurationInformation config,
-            TimeAbacus timeAbacus)
+            TimeAbacus timeAbacus,
+            ILockManager lockManager)
         {
             var nodes = new ExprNode[9];
             for (var i = 0; i < ctx.ChildCount; i++)
@@ -128,8 +130,19 @@ namespace com.espertech.esper.epl.parse
                 }
             }
 
-            ExprTimePeriod timeNode = new ExprTimePeriodImpl(config.EngineDefaults.Expression.TimeZone,
-                nodes[0] != null, nodes[1] != null, nodes[2] != null, nodes[3] != null, nodes[4] != null, nodes[5] != null, nodes[6] != null, nodes[7] != null, nodes[8] != null, timeAbacus);
+            ExprTimePeriod timeNode = new ExprTimePeriodImpl(
+                config.EngineDefaults.Expression.TimeZone,
+                nodes[0] != null, 
+                nodes[1] != null, 
+                nodes[2] != null, 
+                nodes[3] != null, 
+                nodes[4] != null, 
+                nodes[5] != null, 
+                nodes[6] != null, 
+                nodes[7] != null, 
+                nodes[8] != null, 
+                timeAbacus,
+                lockManager);
 
             foreach (ExprNode node in nodes) {
                 if (node != null) timeNode.AddChildNode(node);
@@ -142,12 +155,17 @@ namespace com.espertech.esper.epl.parse
             EsperEPL2GrammarParser.ExpressionContext expression,
             IDictionary<ITree, ExprNode> astExprNodeMap,
             ConfigurationInformation config, 
-            TimeAbacus timeAbacus) 
+            TimeAbacus timeAbacus,
+            ILockManager lockManager) 
         {
             var node = ExprCollectSubNodes(expression, 0, astExprNodeMap)[0];
             var timeNode = new ExprTimePeriodImpl(
                 config.EngineDefaults.Expression.TimeZone,
-                false, false, false, false, false, false, true, false, false, timeAbacus);
+                false, false, false, 
+                false, false, false, 
+                true, false, false, 
+                timeAbacus,
+                lockManager);
             timeNode.AddChildNode(node);
             return timeNode;
         }
@@ -155,8 +173,11 @@ namespace com.espertech.esper.epl.parse
         /// <summary>
         /// Returns the list of set-variable assignments under the given node.
         /// </summary>
+        /// <param name="ctx">The CTX.</param>
         /// <param name="astExprNodeMap">map of AST to expression</param>
-        /// <returns>list of assignments</returns>
+        /// <returns>
+        /// list of assignments
+        /// </returns>
         internal static IList<OnTriggerSetAssignment> GetOnTriggerSetAssignments(
             EsperEPL2GrammarParser.OnSetAssignmentListContext ctx,
             IDictionary<ITree, ExprNode> astExprNodeMap)

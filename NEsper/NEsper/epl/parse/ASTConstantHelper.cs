@@ -92,7 +92,10 @@ namespace com.espertech.esper.epl.parse
     
             else if (tokenType == EsperEPL2GrammarLexer.FloatingPointLiteral) {
                 var numberText = number.GetText();
-                if (numberText.EndsWith("f") || numberText.EndsWith("F")) {
+                if (numberText.EndsWith("m")) {
+                    return DecimalValue.ParseString(number.GetText()) * factor;
+                }
+                else if (numberText.EndsWith("f") || numberText.EndsWith("F")) {
                     return FloatValue.ParseString(number.GetText()) * factor;
                 }
                 else {
@@ -109,7 +112,7 @@ namespace com.espertech.esper.epl.parse
             {
                 return IntValue.ParseString(arg)*factor;
             }
-            catch (OverflowException e1)
+            catch (OverflowException)
             {
                 try
                 {

@@ -13,6 +13,7 @@ using System.Linq;
 using com.espertech.esper.client;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.threading;
 using com.espertech.esper.metrics.instrumentation;
 
@@ -33,11 +34,16 @@ namespace com.espertech.esper.filter
         /// <summary>
         /// Constructor - takes the event type index to manipulate as its parameter.
         /// </summary>
+        /// <param name="lockManager">The lock manager.</param>
         /// <param name="eventTypeIndex">index to manipulate</param>
-        public EventTypeIndexBuilder(EventTypeIndex eventTypeIndex, bool allowIsolation)
+        /// <param name="allowIsolation">if set to <c>true</c> [allow isolation].</param>
+        public EventTypeIndexBuilder(
+            ILockManager lockManager,
+            EventTypeIndex eventTypeIndex,
+            bool allowIsolation)
         {
             _eventTypeIndex = eventTypeIndex;
-            _callbacksLock = LockManager.CreateLock(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+            _callbacksLock = lockManager.CreateLock(GetType());
             _isolatableCallbacks = allowIsolation ? new Dictionary<FilterHandle, EventTypeIndexBuilderValueIndexesPair>() : null;
         }
 
@@ -58,6 +64,7 @@ namespace com.espertech.esper.filter
         /// <param name="filterValueSet">is the filter information</param>
         /// <param name="filterCallback">is the callback</param>
         /// <param name="lockFactory">The lock factory.</param>
+        /// <returns></returns>
         /// <exception cref="IllegalStateException">Callback for filter specification already exists in collection</exception>
         public FilterServiceEntry Add(FilterValueSet filterValueSet, FilterHandle filterCallback, FilterServiceGranularLockFactory lockFactory)
         {
@@ -76,8 +83,7 @@ namespace com.espertech.esper.filter
                     using(_callbacksLock.Acquire())
                     {
                         rootNode = _eventTypeIndex.Get(eventType);
-                        if (rootNode == null)
-                        {
+                        if (rootNode == null) {
                             rootNode = new FilterHandleSetNode(lockFactory.ObtainNew());
                             _eventTypeIndex.Add(eventType, rootNode);
                         }
@@ -107,6 +113,7 @@ namespace com.espertech.esper.filter
         /// Remove a filter callback from the given index node.
         /// </summary>
         /// <param name="filterCallback">is the callback to remove</param>
+        /// <param name="filterServiceEntry">The filter service entry.</param>
         public void Remove(FilterHandle filterCallback, FilterServiceEntry filterServiceEntry)
         {
             EventTypeIndexBuilderValueIndexesPair pair;

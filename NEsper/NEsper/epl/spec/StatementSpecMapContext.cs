@@ -10,6 +10,8 @@ using System.Collections.Generic;
 
 using com.espertech.esper.client;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
+using com.espertech.esper.compat.threading;
 using com.espertech.esper.core.context.mgr;
 using com.espertech.esper.core.context.util;
 using com.espertech.esper.epl.core;
@@ -37,6 +39,7 @@ namespace com.espertech.esper.epl.spec
         /// <summary>
         /// Ctor.
         /// </summary>
+        /// <param name="container">The container.</param>
         /// <param name="engineImportService">engine imports</param>
         /// <param name="variableService">variable names</param>
         /// <param name="configuration">the configuration</param>
@@ -48,8 +51,21 @@ namespace com.espertech.esper.epl.spec
         /// <param name="exprDeclaredService">The expr declared service.</param>
         /// <param name="contextDescriptor">optional context description</param>
         /// <param name="tableService">The table service.</param>
-        public StatementSpecMapContext(EngineImportService engineImportService, VariableService variableService, ConfigurationInformation configuration, SchedulingService schedulingService, string engineURI, PatternNodeFactory patternNodeFactory, NamedWindowMgmtService namedWindowMgmtService, ContextManagementService contextManagementService, ExprDeclaredService exprDeclaredService, ContextDescriptor contextDescriptor, TableService tableService)
+        public StatementSpecMapContext(
+            IContainer container,
+            EngineImportService engineImportService,
+            VariableService variableService, 
+            ConfigurationInformation configuration,
+            SchedulingService schedulingService, 
+            string engineURI, 
+            PatternNodeFactory patternNodeFactory,
+            NamedWindowMgmtService namedWindowMgmtService, 
+            ContextManagementService contextManagementService,
+            ExprDeclaredService exprDeclaredService, 
+            ContextDescriptor contextDescriptor,
+            TableService tableService)
         {
+            Container = container;
             PlugInAggregations = new LazyAllocatedMap<ConfigurationPlugInAggregationMultiFunction, PlugInAggregationMultiFunctionFactory>();
             TableExpressions = new HashSet<ExprTableAccessNode>();
             EngineImportService = engineImportService;
@@ -159,5 +175,16 @@ namespace com.espertech.esper.epl.spec
         public TableService TableService { get; private set; }
 
         public ISet<ExprTableAccessNode> TableExpressions { get; private set; }
+
+        public IContainer Container { get; private set; }
+
+        public ILockManager LockManager =>
+            Container.Resolve<ILockManager>();
+
+        public IReaderWriterLockManager ReaderWriterLockManager =>
+            Container.Resolve<IReaderWriterLockManager>();
+
+        public IThreadLocalManager ThreadLocalManager =>
+            Container.Resolve<IThreadLocalManager>();
     }
 } // end of namespace

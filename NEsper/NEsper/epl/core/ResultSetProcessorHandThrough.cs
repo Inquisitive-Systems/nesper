@@ -101,13 +101,18 @@ namespace com.espertech.esper.epl.core
     
             return result;
         }
-    
-        /// <summary>Applies the select-clause to the given events returning the selected events. The number of events stays the same, i.e. this method does not filter it just transforms the result set. </summary>
+
+        /// <summary>
+        /// Applies the select-clause to the given events returning the selected events. The number of events stays the same, i.e. this method does not filter it just transforms the result set.
+        /// </summary>
         /// <param name="exprProcessor">processes each input event and returns output event</param>
         /// <param name="events">input events</param>
         /// <param name="isNewData">indicates whether we are dealing with new data (istream) or old data (rstream)</param>
         /// <param name="isSynthesize">set to true to indicate that synthetic events are required for an iterator result set</param>
-        /// <returns>output events, one for each input event</returns>
+        /// <param name="agentInstanceContext">The agent instance context.</param>
+        /// <returns>
+        /// output events, one for each input event
+        /// </returns>
         internal static EventBean[] GetSelectEventsNoHaving(SelectExprProcessor exprProcessor, ICollection<MultiKey<EventBean>> events, bool isNewData, bool isSynthesize, ExprEvaluatorContext agentInstanceContext)
         {
             int length = events.Count;
@@ -145,7 +150,7 @@ namespace com.espertech.esper.epl.core
             // Process join results set as a regular join, includes sorting and having-clause filter
             UniformPair<EventBean[]> result = ProcessJoinResult(joinSet, CollectionUtil.EMPTY_ROW_SET, true);
             if ((result == null) || (result.First == null))
-                return EnumerationHelper<EventBean>.Empty(); 
+                return EnumerationHelper.Empty<EventBean>(); 
             return ((IEnumerable<EventBean>)result.First).GetEnumerator();
         }
 

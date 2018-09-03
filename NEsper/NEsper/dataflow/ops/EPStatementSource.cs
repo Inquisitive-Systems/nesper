@@ -8,7 +8,7 @@
 
 using System;
 using System.Collections.Generic;
-
+using System.Reflection;
 using com.espertech.esper.client;
 using com.espertech.esper.client.dataflow;
 using com.espertech.esper.compat.collections;
@@ -25,13 +25,13 @@ namespace com.espertech.esper.dataflow.ops
         : DataFlowSourceOperator
         , DataFlowOpLifecycle
     {
-        private static readonly ILog Log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 #pragma warning disable 649
-        [DataFlowOpParameterAttribute] private String statementName;
-        [DataFlowOpParameterAttribute] private EPDataFlowEPStatementFilter statementFilter;
-        [DataFlowOpParameterAttribute] private EPDataFlowIRStreamCollector collector;
-        [DataFlowContextAttribute] private EPDataFlowEmitter graphContext;
+        [DataFlowOpParameter] private String statementName;
+        [DataFlowOpParameter] private EPDataFlowEPStatementFilter statementFilter;
+        [DataFlowOpParameter] private EPDataFlowIRStreamCollector collector;
+        [DataFlowContext] private EPDataFlowEmitter graphContext;
 #pragma warning restore 649
 
         private StatementLifecycleSvc _statementLifecycleSvc;
@@ -40,16 +40,18 @@ namespace com.espertech.esper.dataflow.ops
         private readonly IBlockingQueue<Object> _emittables = new LinkedBlockingQueue<Object>();
         private bool _submitEventBean;
 
-        private readonly ILockable _iLock =
-            LockManager.CreateLock(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private readonly ILockable _iLock;
 
-        private readonly IThreadLocal<EPDataFlowIRStreamCollectorContext> _collectorDataTL =
-            ThreadLocalManager.Create<EPDataFlowIRStreamCollectorContext>(() => null);
+        private readonly IThreadLocal<EPDataFlowIRStreamCollectorContext> _collectorDataTL;
 
         private readonly EventHandler<StatementLifecycleEvent> _lifeCycleEventHandler;
 
-        public EPStatementSource()
+        public EPStatementSource(
+            ILockManager lockManager,
+            IThreadLocalManager threadLocalManager)
         {
+            _iLock = lockManager.CreateLock(MethodBase.GetCurrentMethod().DeclaringType);
+            _collectorDataTL = threadLocalManager.Create<EPDataFlowIRStreamCollectorContext>(() => null);
             _lifeCycleEventHandler = Observe;
         }
 
@@ -70,7 +72,7 @@ namespace com.espertech.esper.dataflow.ops
             }
 
             DataFlowOpOutputPort portZero = context.OutputPorts[0];
-            if (portZero != null && portZero.OptionalDeclaredType != null && portZero.OptionalDeclaredType.IsWildcard)
+            if (portZero?.OptionalDeclaredType?.IsWildcard == true)
             {
                 _submitEventBean = true;
             }
@@ -82,14 +84,12 @@ namespace com.espertech.esper.dataflow.ops
         public void Next()
         {
             var next = _emittables.Pop();
-            if (next is EPDataFlowSignal)
+            if (next is EPDataFlowSignal signal)
             {
-                var signal = (EPDataFlowSignal)next;
                 graphContext.SubmitSignal(signal);
             }
-            else if (next is PortAndMessagePair)
+            else if (next is PortAndMessagePair pair)
             {
-                var pair = (PortAndMessagePair)next;
                 graphContext.SubmitPort(pair.Port, pair.Message);
             }
             else
@@ -208,7 +208,9 @@ namespace com.espertech.esper.dataflow.ops
             _listeners.Put(stmt, updateEventHandler);
         }
 
+#pragma warning disable CS0612
         public class EmitterUpdateListener : StatementAwareUpdateListener
+#pragma warning restore CS0612
         {
             private readonly IBlockingQueue<Object> _queue;
             private readonly bool _submitEventBean;
@@ -228,7 +230,7 @@ namespace com.espertech.esper.dataflow.ops
                     e.ServiceProvider);
             }
 
-            public void Update(EventBean[] newEvents, EventBean[] oldEvents, EPStatement statement, EPServiceProvider epServiceProvider)
+            public void Update(EventBean[] newEvents, EventBean[] oldEvents, EPStatement statement, EPServiceProvider svcProvider)
             {
                 if (newEvents != null)
                 {
@@ -248,7 +250,9 @@ namespace com.espertech.esper.dataflow.ops
             }
         }
 
+#pragma warning disable CS0612
         public class EmitterCollectorUpdateListener : StatementAwareUpdateListener
+#pragma warning restore CS0612
         {
             private readonly EPDataFlowIRStreamCollector _collector;
             private readonly LocalEmitter _emitterForCollector;
@@ -272,18 +276,18 @@ namespace com.espertech.esper.dataflow.ops
                     e.ServiceProvider);
             }
 
-            public void Update(EventBean[] newEvents, EventBean[] oldEvents, EPStatement statement, EPServiceProvider epServiceProvider)
+            public void Update(EventBean[] newEvents, EventBean[] oldEvents, EPStatement statement, EPServiceProvider svcProvider)
             {
 
                 EPDataFlowIRStreamCollectorContext holder = _collectorDataTL.GetOrCreate();
                 if (holder == null)
                 {
-                    holder = new EPDataFlowIRStreamCollectorContext(_emitterForCollector, _submitEventBean, newEvents, oldEvents, statement, epServiceProvider);
+                    holder = new EPDataFlowIRStreamCollectorContext(_emitterForCollector, _submitEventBean, newEvents, oldEvents, statement, svcProvider);
                     _collectorDataTL.Value = holder;
                 }
                 else
                 {
-                    holder.ServiceProvider = epServiceProvider;
+                    holder.ServiceProvider = svcProvider;
                     holder.Statement = statement;
                     holder.OldEvents = oldEvents;
                     holder.NewEvents = newEvents;
@@ -326,9 +330,9 @@ namespace com.espertech.esper.dataflow.ops
                 Message = message;
             }
 
-            public int Port { get; private set; }
+            public int Port { get; }
 
-            public object Message { get; private set; }
+            public object Message { get; }
         }
     }
 }

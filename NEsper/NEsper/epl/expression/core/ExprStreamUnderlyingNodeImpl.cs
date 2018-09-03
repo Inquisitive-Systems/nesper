@@ -35,6 +35,8 @@ namespace com.espertech.esper.epl.expression.core
         /// Ctor.
         /// </summary>
         /// <param name="streamName">is the name of the stream for which to return the underlying event</param>
+        /// <param name="isWildcard">if set to <c>true</c> [is wildcard].</param>
+        /// <exception cref="ArgumentException">Stream name is null</exception>
         public ExprStreamUnderlyingNodeImpl(string streamName, bool isWildcard)
         {
             if ((streamName == null) && (!isWildcard))
@@ -162,7 +164,7 @@ namespace com.espertech.esper.epl.expression.core
             get { return _eventType; }
         }
 
-        public override bool EqualsNode(ExprNode node)
+        public override bool EqualsNode(ExprNode node, bool ignoreStreamPrefix)
         {
             var other = node as ExprStreamUnderlyingNodeImpl;
             if (other == null)

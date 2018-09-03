@@ -14,7 +14,6 @@ using com.espertech.esper.compat;
 using com.espertech.esper.compat.logging;
 using com.espertech.esper.core.context.util;
 using com.espertech.esper.epl.core;
-using com.espertech.esper.epl.expression.core;
 using com.espertech.esper.epl.join.plan;
 using com.espertech.esper.epl.join.table;
 using com.espertech.esper.epl.join.util;
@@ -22,7 +21,7 @@ using com.espertech.esper.util;
 
 namespace com.espertech.esper.epl.lookup
 {
-    public class SubordinateQueryPlannerUtil
+    public static class SubordinateQueryPlannerUtil
     {
         public static void QueryPlanLogOnExpr(
             bool queryPlanLogging,
@@ -225,7 +224,7 @@ namespace com.espertech.esper.epl.lookup
                 var table = indexRepository.GetIndexByDesc(desc.IndexMultiKey);
                 if (table == null)
                 {
-                    table = EventTableUtil.BuildIndex(agentInstanceContext, 0, desc.QueryPlanIndexItem, eventType, true, desc.IndexMultiKey.IsUnique, null, null, false);
+                    table = EventTableUtil.BuildIndex(agentInstanceContext, 0, desc.QueryPlanIndexItem, eventType, true, desc.IndexMultiKey.IsUnique, desc.IndexName, null, false);
 
                     // fill table since its new
                     if (!isRecoveringResilient)
@@ -234,7 +233,7 @@ namespace com.espertech.esper.epl.lookup
                         foreach (var prefilledEvent in contents)
                         {
                             events[0] = prefilledEvent;
-                            table.Add(events);
+                            table.Add(events, agentInstanceContext);
                         }
                     }
 
@@ -255,7 +254,7 @@ namespace com.espertech.esper.epl.lookup
                 }
                 else
                 {
-                    repo.AddIndex(false, desc.IndexMultiKey, null, statementName, false, desc.QueryPlanIndexItem);
+                    repo.AddIndexNonExplicit(desc.IndexMultiKey, statementName, desc.QueryPlanIndexItem);
                     repo.AddIndexReference(desc.IndexMultiKey, statementName);
                 }
             }

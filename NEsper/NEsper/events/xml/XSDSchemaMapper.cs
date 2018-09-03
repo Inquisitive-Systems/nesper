@@ -17,6 +17,7 @@ using System.Xml.Schema;
 using com.espertech.esper.client;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
+using com.espertech.esper.compat.container;
 using com.espertech.esper.compat.logging;
 using com.espertech.esper.epl.core;
 
@@ -72,6 +73,7 @@ namespace com.espertech.esper.events.xml
         /// <param name="schemaResource">schema to load and map.</param>
         /// <param name="schemaText">The schema text.</param>
         /// <param name="engineImportService">The engine import service.</param>
+        /// <param name="resourceManager">The resource manager.</param>
         /// <param name="maxRecusiveDepth">depth of maximal recursive element</param>
         /// <returns>
         /// model
@@ -81,12 +83,13 @@ namespace com.espertech.esper.events.xml
             String schemaResource,
             String schemaText,
             EngineImportService engineImportService,
+            IResourceManager resourceManager,
             int maxRecusiveDepth = DEFAULT_MAX_RECURSIVE_DEPTH)
         {
             // Load schema
             try
             {
-                var schemaLocation = string.IsNullOrEmpty(schemaResource) ? null : ResourceManager.ResolveResourceURL(schemaResource);
+                var schemaLocation = string.IsNullOrEmpty(schemaResource) ? null : resourceManager.ResolveResourceURL(schemaResource);
                 var schema = LoadSchema(schemaLocation, schemaText);
                 return Map(schema, schemaLocation, maxRecusiveDepth);
             }
@@ -733,7 +736,6 @@ namespace com.espertech.esper.events.xml
             {
                 foreach (XmlSchemaObject facet in simpleTypeRestriction.Facets)
                 {
-                    //Console.WriteLine(facet);
                 }
             }
 #if false
@@ -756,7 +758,7 @@ namespace com.espertech.esper.events.xml
                             {
                                 digits = Integer.parseInt(facet.getLexicalFacetValue());
                             }
-                            catch (RuntimeException ex)
+                            catch (Exception ex)
                             {
                                 Log.warn(
                                     "Error parsing fraction facet value '" + facet.getLexicalFacetValue() + "' : " +

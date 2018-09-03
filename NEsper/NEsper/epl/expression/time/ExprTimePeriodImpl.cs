@@ -16,6 +16,7 @@ using com.espertech.esper.client.util;
 using com.espertech.esper.compat;
 using com.espertech.esper.compat.collections;
 using com.espertech.esper.compat.logging;
+using com.espertech.esper.compat.threading;
 using com.espertech.esper.epl.expression.core;
 using com.espertech.esper.metrics.instrumentation;
 using com.espertech.esper.util;
@@ -33,8 +34,6 @@ namespace com.espertech.esper.epl.expression.time
         , ExprTimePeriod
         , ExprEvaluator
     {
-        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         private readonly TimeZoneInfo _timeZone;
         private readonly bool _hasYear;
         private readonly bool _hasMonth;
@@ -47,10 +46,10 @@ namespace com.espertech.esper.epl.expression.time
         private readonly bool _hasMicrosecond;
         private readonly TimeAbacus _timeAbacus;
         private bool _hasVariable;
-        [NonSerialized]
-        private ExprEvaluator[] _evaluators;
-        [NonSerialized]
-        private TimePeriodAdder[] _adders;
+
+        [NonSerialized] private ExprEvaluator[] _evaluators;
+        [NonSerialized] private TimePeriodAdder[] _adders;
+        [NonSerialized] private ILockManager _lockManager;
 
         /// <summary>
         /// Ctor.
@@ -66,6 +65,7 @@ namespace com.espertech.esper.epl.expression.time
         /// <param name="hasMillisecond">true if the expression has that part, false if not</param>
         /// <param name="hasMicrosecond">if set to <c>true</c> [has microsecond].</param>
         /// <param name="timeAbacus">The time abacus.</param>
+        /// <param name="lockManager">The lock manager.</param>
         public ExprTimePeriodImpl(
             TimeZoneInfo timeZone,
             bool hasYear,
@@ -77,8 +77,10 @@ namespace com.espertech.esper.epl.expression.time
             bool hasSecond,
             bool hasMillisecond,
             bool hasMicrosecond,
-            TimeAbacus timeAbacus)
+            TimeAbacus timeAbacus,
+            ILockManager lockManager)
         {
+            _lockManager = lockManager;
             _timeZone = timeZone;
             _hasYear = hasYear;
             _hasMonth = hasMonth;
@@ -108,7 +110,8 @@ namespace com.espertech.esper.epl.expression.time
                 {
                     values[i] = _evaluators[i].Evaluate(evaluateParams).AsInt();
                 }
-                return new ExprTimePeriodEvalDeltaConstGivenDtxAdd(_adders, values, _timeZone, _timeAbacus);
+                return new ExprTimePeriodEvalDeltaConstGivenDtxAdd(
+                    _lockManager, _adders, values, _timeZone, _timeAbacus);
             }
         }
 
@@ -280,9 +283,9 @@ namespace com.espertech.esper.epl.expression.time
             {
                 throw new ExprValidationException("Time period expression requires a numeric parameter type");
             }
-            if ((_hasMonth || _hasYear) && (returnType.GetBoxedType() != typeof(int?)))
+            if ((_hasMonth || _hasYear) && returnType.IsNotInt32())
             {
-                throw new ExprValidationException("Time period expressions with month or year component require integer values, received a " + returnType.FullName + " value");
+                throw new ExprValidationException("Time period expressions with month or year component require integer values, received a " + returnType.GetCleanName() + " value");
             }
             if (expression is ExprVariableNode)
             {
@@ -300,7 +303,7 @@ namespace com.espertech.esper.epl.expression.time
                 if (result == null)
                 {
                     if (InstrumentationHelper.ENABLED) { InstrumentationHelper.Get().AExprTimePeriod(null); }
-                    throw new EPException("Failed to evaluate time period, received a null value for '" + ExprNodeUtility.ToExpressionStringMinPrecedenceSafe(this) + "'");
+                    throw new EPException("Failed to evaluate time period, received a null value for '" + this.ToExpressionStringMinPrecedenceSafe() + "'");
                 }
                 seconds += _adders[i].Compute(result.Value);
             }
@@ -651,7 +654,7 @@ namespace com.espertech.esper.epl.expression.time
             get { return ExprPrecedenceEnum.UNARY; }
         }
 
-        public override bool EqualsNode(ExprNode node)
+        public override bool EqualsNode(ExprNode node, bool ignoreStreamPrefix)
         {
             if (!(node is ExprTimePeriodImpl))
             {
