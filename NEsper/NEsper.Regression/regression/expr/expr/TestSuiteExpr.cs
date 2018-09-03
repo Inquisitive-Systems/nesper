@@ -101,8 +101,7 @@ namespace com.espertech.esper.regression.expr.expr
         }
 
         [Test]
-        public void TestZoneFoxRegex()
-        {
+        public void TestZoneFoxRegex() {
             RegressionRunner.Run(new ZoneFoxRegexTests());
         }
 

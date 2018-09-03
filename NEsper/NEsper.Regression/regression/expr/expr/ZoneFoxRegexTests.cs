@@ -7,7 +7,6 @@ using NUnit.Framework;
 
 namespace com.espertech.esper.regression.expr.expr
 {
-    [TestFixture]
     public class ZoneFoxRegexTests : RegressionExecution
     {
         public override void Run(EPServiceProvider epService)
