@@ -99,7 +99,13 @@ namespace com.espertech.esper.regression.expr.expr
         public void TestExecExprLikeRegexp() {
             RegressionRunner.Run(new ExecExprLikeRegexp());
         }
-    
+
+        [Test]
+        public void TestZoneFoxRegex()
+        {
+            RegressionRunner.Run(new ZoneFoxRegexTests());
+        }
+
         [Test]
         public void TestExecExprMath() {
             RegressionRunner.Run(new ExecExprMath());
